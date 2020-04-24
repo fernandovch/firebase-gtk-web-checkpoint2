@@ -24,7 +24,15 @@ var rsvpListener = null;
 var guestbookListener = null;
 
 // Add Firebase project configuration object here
-var firebaseConfig = {};
+const firebaseConfig = {
+  apiKey: "AIzaSyC1VFJGZzNdjII87giPg1Z9LnSrRIngdqs",
+  authDomain: "fir-web-codelab-4f752.firebaseapp.com",
+  databaseURL: "https://fir-web-codelab-4f752.firebaseio.com",
+  projectId: "fir-web-codelab-4f752",
+  storageBucket: "fir-web-codelab-4f752.appspot.com",
+  messagingSenderId: "444406181494",
+  appId: "1:444406181494:web:901bcebe0d8252ae033957"
+};
 
 // Initialize Firebase
 if (firebaseConfig && firebaseConfig.apiKey) {
@@ -72,11 +80,16 @@ firebase.auth().onAuthStateChanged((user) => {
    startRsvpButton.textContent = "LOGOUT";
    // Show guestbook to logged-in users
    guestbookContainer.style.display = "block";
+   subscribeGuestBook();
+   subscribeCurrentRSVP(user);
  }
  else{
    startRsvpButton.textContent = "RSVP";
    // Hide guestbook for non-logged-in users
    guestbookContainer.style.display = "none";
+
+   unsubcribeGuestbook();
+   unsubscribeCurrentRSVP();
  }
 });
 
@@ -96,3 +109,82 @@ form.addEventListener("submit", (e) => {
  // Return false to avoid redirect
  return false;
 });
+
+function subscribeGuestBook(){
+
+  guestbookListener = firebase.firestore().collection("guestbook").orderBy("timestamp", "desc")
+      .onSnapshot((snaps) => {
+      guestbook.innerHTML = "";
+      snaps.forEach((doc)=>{
+      const entry = document.createElement("p");
+      entry.textContent = doc.data().name + ": " + doc.data().text;
+      guestbook.appendChild(entry);
+      });
+      });
+
+}
+
+function unsubcribeGuestbook(){
+
+  if(guestbookListener != null)
+  {
+      guestbookListener();
+      guestbookListener = null;
+  }
+
+}
+
+rsvpYes = ()=>{
+  const userDoc = firebase.firestore().collection('attendees')
+    .doc(firebase.auth().currentUser.uid) ;
+    userDoc.set({
+      attending:true
+    }).catch(console.error);
+}
+
+rsvpNo = ()=>{
+  
+  const userDoc = firebase.firestore().collection('attendees')
+    .doc(firebase.auth().currentUser.uid) ;
+    userDoc.set({
+      attending:false
+    }).catch(console.error);
+}
+
+firebase.firestore().collection("attendees")
+.where("attending", "==", true )
+.onSnapshot((snaps)=>{
+  const newAttendeeCount = snaps.docs.length;
+  numberAttending.innerHTML = newAttendeeCount + ' people going ';
+})
+
+function subscribeCurrentRSVP(user){
+  rsvpListener = firebase.firestore().collection('attendees')
+    .doc(user.uid).onSnapshot( (doc)=>{
+      if(doc && doc.data())
+      {
+          const attendingResponse = doc.data().attending;
+
+          if(attendingResponse){
+            rsvpYes.className = "clicked";
+            rsvpNo.className = "";
+          }else{
+            rsvpYes.className = "";
+            rsvpNo.className = "clicked";
+          }
+
+      }
+    })
+}
+
+function unsubscribeCurrentRSVP(){
+  
+  if (rsvpListener !=null) 
+  {
+    rsvpListener ();
+    rsvpListener=null;
+  }  
+  
+  rsvpYes.className = "clicked";
+  rsvpNo.className = "";
+}
